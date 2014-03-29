@@ -12,9 +12,11 @@ entity KeyTest is
 			UART_TX       : out std_logic;
 
 			SPIFLASH_CS : out std_logic;
-			SPIFLASH_MOSI : out std_logic;
+			SPIFLASH_MOSI : inout std_logic;
 			SPIFLASH_MISO : in std_logic;
 			SPIFLASH_SCK : out std_logic;
+			SPIFLASH_WPIO2 : in std_logic;
+			SPIFLASH_HOLDIO3 : in std_logic;
 
          CLOCK_50      : in  std_logic
 	);
@@ -53,7 +55,7 @@ begin
 	sram: entity work.StaticMem(syn)
 		port map (membus_address, membus_data_out, membus_data_in_sram, membus_csrd_n_sram, membus_cswr_n_sram, membus_memrdy_sram, CLOCK_50);
 	flashmem: entity work.SpiFlashMem(syn)
-		port map (membus_address, membus_data_out, membus_data_in_flash, membus_csrd_n_flash, membus_memrdy_flash, SPIFLASH_CS, SPIFLASH_MOSI,SPIFLASH_MISO, SPIFLASH_SCK, CLOCK_50);
+		port map (membus_address, membus_data_out, membus_data_in_flash, membus_csrd_n_flash, membus_memrdy_flash, SPIFLASH_CS, SPIFLASH_MOSI, SPIFLASH_MISO, SPIFLASH_WPIO2, SPIFLASH_HOLDIO3, SPIFLASH_SCK, CLOCK_50);
 	
 	-- CS/ for various kinds of memories
 	with membus_address(31 downto 24) select membus_csrd_n_fakemem <= 

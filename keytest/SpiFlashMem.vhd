@@ -13,8 +13,10 @@ entity SpiFlashMem is
 		MEMBUS_MEMRDY : out std_logic;
 
 		SPIFLASH_CS : out std_logic;
-		SPIFLASH_MOSI : out std_logic;
+		SPIFLASH_MOSI : inout std_logic;
 		SPIFLASH_MISO : in std_logic;
+		SPIFLASH_WPIO2 : in std_logic;
+		SPIFLASH_HOLDIO3 : in std_logic;
 		SPIFLASH_SCK : out std_logic;
 		CLOCK: in std_logic
 	);
@@ -22,7 +24,8 @@ end entity SpiFlashMem;
 
 architecture syn of SpiFlashMem is
 type SpiState is (Setup, Idle, SendCommand, SendAddress, WaitForData, ReceiveData, EndTransaction);
-constant ReadCmd : std_logic_vector(7 downto 0) := "00010011";
+-- constant ReadCmd : std_logic_vector(7 downto 0) := "00010011";
+constant ReadCmd : std_logic_vector(7 downto 0) := "01101100";
 signal state: SpiState := Setup;
 signal counter: integer range 0 to 255 := 0;
 signal address: std_logic_vector(31 downto 0) := x"00000000";
@@ -75,17 +78,23 @@ begin
 					end if;
 				when WaitForData =>
 					state <= ReceiveData;
+					SPIFLASH_MOSI <= 'Z';
 				when ReceiveData =>
+					SPIFLASH_MOSI <= 'Z';
 					if edge = '1' then
-						data(7 - counter) <= SPIFLASH_MISO;
-						if counter = 7 then
+						data(7 - counter) <= SPIFLASH_HOLDIO3;
+						data(6 - counter) <= SPIFLASH_WPIO2;
+						data(5 - counter) <= SPIFLASH_MISO;
+						data(4 - counter) <= SPIFLASH_MOSI;
+						if counter = 4 then
 							state <= EndTransaction;
 							counter <= 0;
 						else
-							counter <= counter + 1;
+							counter <= counter + 4;
 						end if;
 					end if;
 				when EndTransaction =>
+					SPIFLASH_MOSI <= 'Z';
 					MEMBUS_DATA_IN <= data;
 					MEMBUS_MEMRDY <= '1';
 					--state <= SendCommand;
