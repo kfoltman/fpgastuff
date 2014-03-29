@@ -19,8 +19,16 @@ signal keys : std_logic_vector(15 downto 0);
 signal deb_keys : std_logic_vector(15 downto 0);
 signal old_keys : std_logic_vector(15 downto 0);
 signal serial_data_in, serial_data_out : std_logic_vector(7 downto 0);
-signal serial_cswr_n, serial_ready_n : std_logic;
+signal serial_cswr_n, serial_ready_n, serial_tx_empty : std_logic;
 signal LED_INTENSITY : PWMIntensities;
+
+signal membus_address : std_logic_vector(31 downto 0);
+signal membus_data_in, membus_data_in_fakemem : std_logic_vector(7 downto 0);
+signal membus_data_out : std_logic_vector(7 downto 0);
+signal membus_csrd_n, membus_csrd_n_fakemem : std_logic;
+signal membus_memrdy, membus_memrdy_fakemem : std_logic;
+
+
 constant ZeroIntensity : PWMIntensity := 0;
 begin
 	scanner : entity work.KeyScanner(syn)
@@ -30,19 +38,26 @@ begin
 	pwm: entity work.PWMLed(syn)
 		port map (LED_INTENSITY, LED_GREEN, CLOCK_50);
 	serial: entity work.SerialPort(syn)
-		port map (serial_data_out, serial_data_in, serial_cswr_n, serial_ready_n, UART_TX, UART_RX, CLOCK_50);
+		port map (serial_data_out, serial_data_in, serial_cswr_n, serial_ready_n, serial_tx_empty, UART_TX, UART_RX, CLOCK_50);
+	sermon: entity work.DataMon(syn)
+		port map (serial_data_out, serial_data_in, serial_cswr_n, serial_ready_n, serial_tx_empty, membus_address, membus_data_out, membus_data_in, membus_csrd_n, membus_memrdy, CLOCK_50);
+	fakemem: entity work.FakeMem(syn)
+		port map (membus_address, membus_data_out, membus_data_in_fakemem, membus_csrd_n_fakemem, membus_memrdy_fakemem, CLOCK_50);
+	
+	membus_csrd_n_fakemem <= membus_csrd_n or membus_address(0);
+	
+	with membus_address(0) select membus_memrdy <= 
+		membus_memrdy_fakemem when '0',
+		'1' when '1';
+
+	with membus_address(0) select membus_data_in <= 
+		membus_data_in_fakemem when '0',
+		"10101010" when '1';
+	
 	process(CLOCK_50)
 	variable key : integer range 0 to 131071;
 	begin
 		if rising_edge(CLOCK_50) then
-			serial_cswr_n <= serial_ready_n;
-			if serial_ready_n = '0' then
-				if serial_data_in = "00100000" then
-					serial_data_out <= "00100001";
-				else
-					serial_data_out <= serial_data_in;
-				end if;
-			end if;
 			if key < 8 then
 				if deb_keys(key) = '1' and old_keys(key) = '0' then
 					LED_INTENSITY(key) <= 255;
