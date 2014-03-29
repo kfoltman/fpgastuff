@@ -29,11 +29,11 @@ signal serial_cswr_n, serial_ready_n, serial_tx_empty : std_logic;
 signal LED_INTENSITY : PWMIntensities;
 
 signal membus_address : std_logic_vector(31 downto 0);
-signal membus_data_in, membus_data_in_fakemem, membus_data_in_flash : std_logic_vector(7 downto 0);
+signal membus_data_in, membus_data_in_fakemem, membus_data_in_flash, membus_data_in_sram : std_logic_vector(7 downto 0);
 signal membus_data_out : std_logic_vector(7 downto 0);
-signal membus_csrd_n, membus_csrd_n_fakemem, membus_csrd_n_flash : std_logic;
-signal membus_cswr_n : std_logic;
-signal membus_memrdy, membus_memrdy_fakemem, membus_memrdy_flash : std_logic;
+signal membus_csrd_n, membus_csrd_n_fakemem, membus_csrd_n_flash, membus_csrd_n_sram : std_logic;
+signal membus_cswr_n, membus_cswr_n_sram : std_logic;
+signal membus_memrdy, membus_memrdy_fakemem, membus_memrdy_flash, membus_memrdy_sram : std_logic;
 
 
 constant ZeroIntensity : PWMIntensity := 0;
@@ -50,6 +50,8 @@ begin
 		port map (serial_data_out, serial_data_in, serial_cswr_n, serial_ready_n, serial_tx_empty, membus_address, membus_data_out, membus_data_in, membus_csrd_n, membus_cswr_n, membus_memrdy, CLOCK_50);
 	fakemem: entity work.FakeMem(syn)
 		port map (membus_address, membus_data_out, membus_data_in_fakemem, membus_csrd_n_fakemem, membus_memrdy_fakemem, CLOCK_50);
+	sram: entity work.StaticMem(syn)
+		port map (membus_address, membus_data_out, membus_data_in_sram, membus_csrd_n_sram, membus_cswr_n_sram, membus_memrdy_sram, CLOCK_50);
 	flashmem: entity work.SpiFlashMem(syn)
 		port map (membus_address, membus_data_out, membus_data_in_flash, membus_csrd_n_flash, membus_memrdy_flash, SPIFLASH_CS, SPIFLASH_MOSI,SPIFLASH_MISO, SPIFLASH_SCK, CLOCK_50);
 	
@@ -63,6 +65,14 @@ begin
 		membus_csrd_n when "00000001",
 		'1' when others;
 	
+	with membus_address(31 downto 24) select membus_csrd_n_sram <= 
+		membus_csrd_n when "00000100",
+		'1' when others;
+	
+	with membus_address(31 downto 24) select membus_cswr_n_sram <= 
+		membus_cswr_n when "00000100",
+		'1' when others;
+	
 	-- MEMRDY multiplexing
 	with membus_address(31 downto 24) select membus_memrdy <= 
 		-- 32MB SPI flashmemory at 00xxxxxx/01xxxxxx
@@ -70,6 +80,8 @@ begin
 		membus_memrdy_flash when "00000001",
 		-- 16MB fake memory at 03xxxxxx
 		membus_memrdy_fakemem when "00000011",
+		-- 1KB SRAM at 04xxxxxx
+		membus_memrdy_sram when "00000100",
 		'1' when others;
 
 	-- data bus multiplexing
@@ -81,6 +93,8 @@ begin
 		("0000000" & deb_keys(to_integer(unsigned(membus_address(3 downto 0))))) when "00000010",
 		-- 16MB fake memory at 03xxxxxx
 		membus_data_in_fakemem when "00000011",
+		-- 1KB SRAM at 04xxxxxx
+		membus_data_in_sram when "00000100",
 		"10101010" when others;
 	
 	process(CLOCK_50)
