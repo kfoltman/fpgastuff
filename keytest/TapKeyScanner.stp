@@ -1,0 +1,15 @@
+<session jtag_chain="USB-Blaster [7-5.2]" jtag_device="@1: EP3C25/EP4CE22 (0x020F30DD)" sof_file="">
+  <display_tree gui_logging_enabled="0"/>
+  <global_info>
+    <single attribute="active instance" value="0"/>
+    <multi attribute="frame size" size="2" value="1920,984"/>
+    <single attribute="jtag widget visible" value="1"/>
+    <multi attribute="jtag widget size" size="2" value="378,141"/>
+    <single attribute="instance widget visible" value="1"/>
+    <single attribute="config widget visible" value="1"/>
+    <single attribute="hierarchy widget visible" value="1"/>
+    <single attribute="data log widget visible" value="1"/>
+  </global_info>
+  <mnemonics/>
+  <static_plugin_mnemonics/>
+</session>
