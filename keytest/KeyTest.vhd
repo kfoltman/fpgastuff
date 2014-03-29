@@ -32,6 +32,7 @@ signal membus_address : std_logic_vector(31 downto 0);
 signal membus_data_in, membus_data_in_fakemem, membus_data_in_flash : std_logic_vector(7 downto 0);
 signal membus_data_out : std_logic_vector(7 downto 0);
 signal membus_csrd_n, membus_csrd_n_fakemem, membus_csrd_n_flash : std_logic;
+signal membus_cswr_n : std_logic;
 signal membus_memrdy, membus_memrdy_fakemem, membus_memrdy_flash : std_logic;
 
 
@@ -46,7 +47,7 @@ begin
 	serial: entity work.SerialPort(syn)
 		port map (serial_data_out, serial_data_in, serial_cswr_n, serial_ready_n, serial_tx_empty, UART_TX, UART_RX, CLOCK_50);
 	sermon: entity work.DataMon(syn)
-		port map (serial_data_out, serial_data_in, serial_cswr_n, serial_ready_n, serial_tx_empty, membus_address, membus_data_out, membus_data_in, membus_csrd_n, membus_memrdy, CLOCK_50);
+		port map (serial_data_out, serial_data_in, serial_cswr_n, serial_ready_n, serial_tx_empty, membus_address, membus_data_out, membus_data_in, membus_csrd_n, membus_cswr_n, membus_memrdy, CLOCK_50);
 	fakemem: entity work.FakeMem(syn)
 		port map (membus_address, membus_data_out, membus_data_in_fakemem, membus_csrd_n_fakemem, membus_memrdy_fakemem, CLOCK_50);
 	flashmem: entity work.SpiFlashMem(syn)
@@ -86,6 +87,9 @@ begin
 	variable key : integer range 0 to 131071;
 	begin
 		if rising_edge(CLOCK_50) then
+			if membus_cswr_n = '0' and membus_address(31 downto 24) = "00000010" then
+				LED_INTENSITY(to_integer(unsigned(membus_address(2 downto 0)))) <= PWMIntensity(to_integer(unsigned(membus_data_out)));
+			end if;
 			if key < 8 then
 				if deb_keys(key) = '1' and old_keys(key) = '0' then
 					LED_INTENSITY(key) <= 255;

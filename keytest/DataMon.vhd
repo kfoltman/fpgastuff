@@ -16,6 +16,7 @@ entity DataMon is
 		MEMBUS_DATA_OUT : out std_logic_vector(7 downto 0);
 		MEMBUS_DATA_IN : in std_logic_vector(7 downto 0);
 		MEMBUS_CSRD_N : out std_logic;
+		MEMBUS_CSWR_N : out std_logic;
 		MEMBUS_MEMRDY : in std_logic;
 		
 		CLOCK : in std_logic
@@ -24,7 +25,7 @@ end entity DataMon;
 
 architecture syn of DataMon is
 type Cmd is (CmdNone, CmdRead, CmdWrite);
-type State is (Waiting, ReceivingData1, ReceivingData2, TransmittingData1, TransmittingData2, FetchingData1, FetchingData2);
+type State is (Waiting, ReceivingData1, ReceivingData2, TransmittingData1, TransmittingData2, FetchingData1, FetchingData2, StoringData1, StoringData2);
 type DataBuffer is array (0 to 19) of std_logic_vector(7 downto 0);
 signal cur_cmd : Cmd := CmdNone;
 signal cur_state : State := Waiting;
@@ -43,6 +44,7 @@ begin
 			MEMBUS_DATA_OUT <= "00000000";
 			MEMBUS_CSRD_N <= '1';
 			DATA_CSWR_N <= '1';
+			MEMBUS_CSWR_N <= '1';
 			case cur_state is
 				when FetchingData1 => 
 					if read_byte < mem_length then
@@ -88,6 +90,24 @@ begin
 						mem_address <= std_logic_vector(to_unsigned(1 + to_integer(unsigned(mem_address)), 32));
 						cur_state <= FetchingData1;
 					end if;
+				when StoringData1 => 
+					if read_byte < mem_length then
+						cur_state <= StoringData2;
+						MEMBUS_ADDRESS <= mem_address;
+						MEMBUS_DATA_OUT <= databuf(read_byte);
+						MEMBUS_CSWR_N <= '0';
+					else
+						cur_state <= Waiting;
+						DATA_CSWR_N <= '0';
+						DATA_OUT <= CharToByte('!');
+					end if;
+				when StoringData2 =>
+					-- wait for confirmation
+					if MEMBUS_MEMRDY = '1' then
+						mem_address <= std_logic_vector(to_unsigned(1 + to_integer(unsigned(mem_address)), 32));
+						read_byte <= read_byte + 1;
+						cur_state <= StoringData1;
+					end if;
 				when others =>
 			end case;
 			if DATA_READY_N = '0' then
@@ -111,6 +131,17 @@ begin
 						end case;
 					when ReceivingData1 =>
 						case DATA_IN(7 downto 4) is
+							when "0010" =>
+								if DATA_IN(3 downto 0) = "0001" then
+									cur_state <= StoringData1;
+									read_byte <= 4;
+									mem_address <= databuf(0) & databuf(1) & databuf(2) & databuf(3);
+									mem_length <= cmd_byte;
+								else									
+									DATA_CSWR_N <= '0';
+									DATA_OUT <= x"3F";
+									cur_state <= Waiting;
+								end if;
 							when "0011" =>
 								if to_integer(unsigned(DATA_IN(3 downto 0))) < 10 then
 									digit := DATA_IN(3 downto 0);
