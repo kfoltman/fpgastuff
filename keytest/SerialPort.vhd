@@ -65,27 +65,43 @@ begin
 	variable speed_ctr : integer range 0 to 511 := 0;
 	variable bit_ctr : integer range 0 to 10 := 10;
 	variable shiftreg : std_logic_vector(9 downto 0);
+	variable lastrx : std_logic_vector(2 downto 0);
 	begin
 		if rising_edge(CLOCK) then
+			lastrx := lastrx(1 downto 0) & RX;
 			DATA_READY_N <= '1';
 			if bit_ctr = 10 then
-				if RX = '0' then
+				if lastrx = "000" then
 					bit_ctr := 0;
+					speed_ctr := 3;
 				else
 					bit_ctr := 10;
+					speed_ctr := 0;
 				end if;
-				speed_ctr := 0;
+			elsif bit_ctr = 9 then
+				if lastrx = "111" then
+					DATA_OUT <= shiftreg(8 downto 1);
+					DATA_READY_N <= '0';
+					bit_ctr := 10;
+					speed_ctr := 0;
+				end if;
 			elsif speed_ctr = (speed_div / 2) then -- sample at mid-period
-				shiftreg(bit_ctr) := RX;
+				case lastrx is
+					when "111" => shiftreg(bit_ctr) := '1';
+					when "110" => shiftreg(bit_ctr) := '1';
+					when "101" => shiftreg(bit_ctr) := '1';
+					when "011" => shiftreg(bit_ctr) := '1';
+
+					when "000" => shiftreg(bit_ctr) := '0';
+					when "001" => shiftreg(bit_ctr) := '0';
+					when "010" => shiftreg(bit_ctr) := '0';
+					when "100" => shiftreg(bit_ctr) := '0';
+				end case;
 				speed_ctr := speed_ctr + 1;
 			elsif speed_ctr < speed_div - 1 then
 				speed_ctr := speed_ctr + 1;
 			else
 				speed_ctr := 0;
-				if bit_ctr = 9 then
-					DATA_OUT <= shiftreg(8 downto 1);
-					DATA_READY_N <= '0';
-				end if;
 				bit_ctr := bit_ctr + 1;
 			end if;
 		end if;
