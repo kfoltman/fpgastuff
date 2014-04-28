@@ -3,11 +3,15 @@ use IEEE.STD_LOGIC_1164.all;
 use IEEE.NUMERIC_STD.all;
 
 entity WS2812B is
+	generic (
+		diodecount : natural := 5
+	);
 	port (
 		R, G, B : in std_logic_vector(7 downto 0);
 		DATA_OUT : out std_logic;
-		CUR_DIODE : out std_logic_vector(2 downto 0);
+		CUR_DIODE : out integer range 0 to diodecount - 1;
 		CYCLE_END : out std_logic;
+		FORCE_RESET : in std_logic;
 		CLOCK : in std_logic
 	);
 end entity WS2812B;
@@ -17,7 +21,7 @@ begin
 	process(CLOCK)
 	constant prescaler_value : integer := 62;
 	variable bitidx : integer range 0 to 7 := 0;
-	variable diodeidx : integer range 0 to 4 := 0;
+	variable diodeidx : integer range 0 to diodecount - 1 := 0;
 	variable compidx : integer range 0 to 2 := 0;
 	variable databit : std_logic := '0';
 	variable prescaler : integer range 0 to prescaler_value - 1 := 0;
@@ -49,7 +53,7 @@ begin
 						bitidx := 0;
 						if compidx = 2 then
 							compidx := 0;
-							if diodeidx < 4 then
+							if diodeidx < diodecount - 1 and FORCE_RESET = '0' then
 								diodeidx := diodeidx + 1;
 							else
 								diodeidx := 0;
@@ -65,7 +69,7 @@ begin
 					prescaler := 0;
 				end if;
 			end if;
-			CUR_DIODE <= std_logic_vector(to_unsigned(diodeidx, 3));
+			CUR_DIODE <= diodeidx;
 		end if;
 	end process;
 end architecture syn;

@@ -39,7 +39,7 @@ signal membus_csrd_n, membus_csrd_n_fakemem, membus_csrd_n_flash, membus_csrd_n_
 signal membus_cswr_n, membus_cswr_n_sram : std_logic;
 signal membus_memrdy, membus_memrdy_fakemem, membus_memrdy_flash, membus_memrdy_sram : std_logic;
 
-signal cur_diode: std_logic_vector(2 downto 0);
+signal cur_diode: integer range 0 to 9;
 signal cycle_end: std_logic_vector(2 downto 0);
 signal RGB_R, RGB_G, RGB_B : std_logic_vector(7 downto 0);
 signal RGB_R_BASE, RGB_G_BASE, RGB_B_BASE : std_logic_vector(7 downto 0);
@@ -66,7 +66,8 @@ begin
 	flashmem: entity work.SpiFlashMem(syn)
 		port map (membus_address, membus_data_out, membus_data_in_flash, membus_csrd_n_flash, membus_memrdy_flash, SPIFLASH_CS, SPIFLASH_MOSI, SPIFLASH_MISO, SPIFLASH_WPIO2, SPIFLASH_HOLDIO3, SPIFLASH_SCK, CLOCK_50);
 	ledctrl: entity work.WS2812B(syn)
-		port map (RGB_R, RGB_G, RGB_B, WS2812B_OUT, cur_diode, rgbcycleend, CLOCK_50);
+		generic map (diodecount => 10)
+		port map (RGB_R, RGB_G, RGB_B, WS2812B_OUT, cur_diode, rgbcycleend, '0', CLOCK_50);
 	
 	-- CS/ for various kinds of memories
 	with membus_address(31 downto 24) select membus_csrd_n_fakemem <= 
@@ -98,27 +99,42 @@ begin
 		'1' when others;
 
 	with cur_diode select RGB_R_BASE <=
-		"11000000" when "000",
-		"11000000" when "001",
-		"11000000" when "010",
-		"00000000" when "011",
-		"00000000" when "100",
+		"11000000" when 0,
+		"11000000" when 1,
+		"11000000" when 2,
+		"00000000" when 3,
+		"01000000" when 4,
+		"01000000" when 5,
+		"01000000" when 6,
+		"10000000" when 7,
+		"00000000" when 8,
+		"00000000" when 9,
 		"00000000" when others;
 		
 	with cur_diode select RGB_G_BASE <=
-		"00000000" when "000",
-		"01100000" when "001",
-		"11000000" when "010",
-		"11000000" when "011",
-		"00000000" when "100",
+		"00000000" when 0,
+		"01100000" when 1,
+		"11000000" when 2,
+		"11000000" when 3,
+		"11000000" when 4,
+		"00000000" when 5,
+		"01100000" when 6,
+		"11000000" when 7,
+		"01000000" when 8,
+		"00000000" when 9,
 		"00000000" when others;
 		
 	with cur_diode select RGB_B_BASE <=
-		"00000000" when "000",
-		"00000000" when "001",
-		"00000000" when "010",
-		"00000000" when "011",
-		"11000000" when "100",
+		"00000000" when 0,
+		"00000000" when 1,
+		"00000000" when 2,
+		"00000000" when 3,
+		"11000000" when 4,
+		"10000000" when 5,
+		"11000000" when 6,
+		"00000000" when 7,
+		"00100000" when 8,
+		"11111111" when 9,
 		"00000000" when others;
 		
 	-- data bus multiplexing
