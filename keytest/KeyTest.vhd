@@ -18,6 +18,8 @@ entity KeyTest is
 			SPIFLASH_WPIO2 : in std_logic;
 			SPIFLASH_HOLDIO3 : in std_logic;
 
+			WS2812B_OUT	  	: out std_logic;
+			
          CLOCK_50      : in  std_logic
 	);
 end entity KeyTest;
@@ -37,6 +39,13 @@ signal membus_csrd_n, membus_csrd_n_fakemem, membus_csrd_n_flash, membus_csrd_n_
 signal membus_cswr_n, membus_cswr_n_sram : std_logic;
 signal membus_memrdy, membus_memrdy_fakemem, membus_memrdy_flash, membus_memrdy_sram : std_logic;
 
+signal cur_diode: std_logic_vector(2 downto 0);
+signal cycle_end: std_logic_vector(2 downto 0);
+signal RGB_R, RGB_G, RGB_B : std_logic_vector(7 downto 0);
+signal RGB_R_BASE, RGB_G_BASE, RGB_B_BASE : std_logic_vector(7 downto 0);
+signal rgbcycleend : std_logic;
+signal rgbprescaler : integer range 0 to 499999;
+signal rgbscaler : integer range 0 to 511;
 
 constant ZeroIntensity : PWMIntensity := 0;
 begin
@@ -56,6 +65,8 @@ begin
 		port map (membus_address, membus_data_out, membus_data_in_sram, membus_csrd_n_sram, membus_cswr_n_sram, membus_memrdy_sram, CLOCK_50);
 	flashmem: entity work.SpiFlashMem(syn)
 		port map (membus_address, membus_data_out, membus_data_in_flash, membus_csrd_n_flash, membus_memrdy_flash, SPIFLASH_CS, SPIFLASH_MOSI, SPIFLASH_MISO, SPIFLASH_WPIO2, SPIFLASH_HOLDIO3, SPIFLASH_SCK, CLOCK_50);
+	ledctrl: entity work.WS2812B(syn)
+		port map (RGB_R, RGB_G, RGB_B, WS2812B_OUT, cur_diode, rgbcycleend, CLOCK_50);
 	
 	-- CS/ for various kinds of memories
 	with membus_address(31 downto 24) select membus_csrd_n_fakemem <= 
@@ -86,6 +97,30 @@ begin
 		membus_memrdy_sram when "00000100",
 		'1' when others;
 
+	with cur_diode select RGB_R_BASE <=
+		"11000000" when "000",
+		"11000000" when "001",
+		"11000000" when "010",
+		"00000000" when "011",
+		"00000000" when "100",
+		"00000000" when others;
+		
+	with cur_diode select RGB_G_BASE <=
+		"00000000" when "000",
+		"01100000" when "001",
+		"11000000" when "010",
+		"11000000" when "011",
+		"00000000" when "100",
+		"00000000" when others;
+		
+	with cur_diode select RGB_B_BASE <=
+		"00000000" when "000",
+		"00000000" when "001",
+		"00000000" when "010",
+		"00000000" when "011",
+		"11000000" when "100",
+		"00000000" when others;
+		
 	-- data bus multiplexing
 	with membus_address(31 downto 24) select membus_data_in <= 
 		-- 32MB SPI flash at 00xxxxxx		
@@ -101,8 +136,21 @@ begin
 	
 	process(CLOCK_50)
 	variable key : integer range 0 to 131071;
+	variable rgbscaler2 : integer range 0 to 255;
 	begin
 		if rising_edge(CLOCK_50) then
+			if rgbcycleend = '1' then
+				if rgbprescaler < 19 then
+					rgbprescaler <= rgbprescaler + 1;
+				else
+					rgbprescaler <= 0;
+					if rgbscaler < 511 then
+						rgbscaler <= rgbscaler + 1;
+					else
+						rgbscaler <= 0;
+					end if;
+				end if;
+			end if;
 			if membus_cswr_n = '0' and membus_address(31 downto 24) = "00000010" then
 				LED_INTENSITY(to_integer(unsigned(membus_address(2 downto 0)))) <= PWMIntensity(to_integer(unsigned(membus_data_out)));
 			end if;
@@ -121,6 +169,15 @@ begin
 			else
 				key := key + 1;
 			end if;
+			if rgbscaler < 256 then
+				rgbscaler2 := rgbscaler;
+			else
+				rgbscaler2 := (511 - rgbscaler);
+			end if;
+			rgbscaler2 := rgbscaler2 * rgbscaler2 / 256;
+			RGB_R <= work.Types.rgbmul(RGB_R_BASE, rgbscaler2);
+			RGB_G <= work.Types.rgbmul(RGB_G_BASE, rgbscaler2);
+			RGB_B <= work.Types.rgbmul(RGB_B_BASE, rgbscaler2);
 	 	end if;
 	end process;
 end architecture syn;

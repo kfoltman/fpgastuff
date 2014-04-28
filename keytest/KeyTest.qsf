@@ -409,5 +409,8 @@ set_global_assignment -name SLD_NODE_PARAMETER_ASSIGNMENT "SLD_NODE_CRC_HIWORD=7
 set_global_assignment -name SLD_NODE_PARAMETER_ASSIGNMENT "SLD_SAMPLE_DEPTH=1024" -section_id auto_signaltap_0
 set_global_assignment -name SLD_NODE_PARAMETER_ASSIGNMENT "SLD_TRIGGER_IN_ENABLED=0" -section_id auto_signaltap_0
 set_global_assignment -name VHDL_FILE StaticMem.vhd
+set_global_assignment -name VHDL_FILE WS2812B.vhd
+set_location_assignment PIN_A4 -to WS2812B_OUT
+set_instance_assignment -name IO_STANDARD "3.3-V LVCMOS" -to WS2812B_OUT
 set_instance_assignment -name PARTITION_HIERARCHY root_partition -to | -section_id Top
 set_global_assignment -name SLD_FILE db/TapSpiFlash_auto_stripped.stp
